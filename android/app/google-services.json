@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "397805657842",
+    "firebase_url": "https://monitoring-suhu-b3682-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "monitoring-suhu-b3682",
+    "storage_bucket": "monitoring-suhu-b3682.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:397805657842:android:8ddee3fd86cd20b00bfa6b",
+        "android_client_info": {
+          "package_name": "com.example.monitoring_suhu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_vtjjfGHt2ckE1icwC3gpcY2SjNyoNzc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
