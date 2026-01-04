@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('sensor');
+  final DatabaseReference _settingsRef = FirebaseDatabase.instance.ref('settings');
 
   double _temperature = 0.0;
   double _humidity = 0.0;
@@ -20,10 +22,24 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   List<FlSpot> _tempData = [];
 
+  double _minTemp = 20.0;
+  double _maxTemp = 35.0;
+  bool _notificationsEnabled = true;
+
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _listenToSensorData();
+  }
+
+  void _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _minTemp = prefs.getDouble('minTemp') ?? 20.0;
+      _maxTemp = prefs.getDouble('maxTemp') ?? 35.0;
+      _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
+    });
   }
 
   void _listenToSensorData() {
@@ -36,6 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _condition = data['kondisi'] ?? 'Unknown';
           _isLoading = false;
 
+          // Check for alerts
+          _checkTemperatureAlert(_temperature);
+
           // Update chart data (keep last 10 points)
           if (_tempData.length >= 10) {
             _tempData.removeAt(0);
@@ -47,6 +66,55 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+  }
+
+  void _checkTemperatureAlert(double temp) {
+    if (!_notificationsEnabled) return;
+
+    if (temp < _minTemp) {
+      _showAlert('❄️ Temperature Alert', 'Temperature is too low: ${temp.toStringAsFixed(1)}°C');
+    } else if (temp > _maxTemp) {
+      _showAlert('🔥 Temperature Alert', 'Temperature is too high: ${temp.toStringAsFixed(1)}°C');
+    }
+  }
+
+  void _showAlert(String title, String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(message, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange[700],
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
   }
 
   @override
@@ -123,8 +191,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               child: Icon(
-                Icons.notifications_outlined,
-                color: Colors.blue[700],
+                _notificationsEnabled
+                    ? Icons.notifications_active
+                    : Icons.notifications_off,
+                color: _notificationsEnabled ? Colors.blue[700] : Colors.grey,
                 size: 24,
               ),
             ),

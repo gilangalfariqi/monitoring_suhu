@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -21,6 +22,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _currentHumidity = 0.0;
   String _deviceStatus = 'Connecting...';
 
+  bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -28,13 +31,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _listenToSensor();
   }
 
-  void _loadSettings() {
+  void _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _minTemp = 20.0;
-      _maxTemp = 35.0;
-      _notificationsEnabled = true;
-      _autoRefresh = true;
+      _minTemp = prefs.getDouble('minTemp') ?? 20.0;
+      _maxTemp = prefs.getDouble('maxTemp') ?? 35.0;
+      _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
+      _autoRefresh = prefs.getBool('autoRefresh') ?? true;
+      _deviceName = prefs.getString('deviceName') ?? 'ESP32 Sensor';
     });
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _isSaving = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('minTemp', _minTemp);
+    await prefs.setDouble('maxTemp', _maxTemp);
+    await prefs.setBool('notificationsEnabled', _notificationsEnabled);
+    await prefs.setBool('autoRefresh', _autoRefresh);
+    await prefs.setString('deviceName', _deviceName);
+
+    setState(() => _isSaving = false);
+
+    // Show success message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Settings saved successfully!'),
+            ],
+          ),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _listenToSensor() {
@@ -69,6 +105,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildThresholdSettings(),
               const SizedBox(height: 16),
               _buildNotificationSettings(),
+              const SizedBox(height: 16),
+              _buildSaveButton(),
               const SizedBox(height: 16),
               _buildAboutSection(),
               const SizedBox(height: 20),
@@ -514,6 +552,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildSaveButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isSaving ? null : _saveSettings,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        child: _isSaving
+            ? const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        )
+            : const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.save_rounded, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Save Settings',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAboutSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -536,8 +616,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       //     _buildAboutTile(Icons.help_outline_rounded, 'Help & Support', () {}),
       //     const Divider(height: 24),
       //     _buildAboutTile(Icons.privacy_tip_outlined, 'Privacy Policy', () {}),
-      //     const Divider(height: 24),
-      //     _buildAboutTile(Icons.logout_rounded, 'Sign Out', () {}, isDestructive: true),
       //   ],
       // ),
     );
